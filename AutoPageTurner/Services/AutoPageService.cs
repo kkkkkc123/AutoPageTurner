@@ -62,18 +62,17 @@ public class AutoPageService
 
         this.clickDelay = clickDelay;
 
-        timer.Interval =
-            TimeSpan.FromMilliseconds(interval);
-
-        timer.Start();
         if (useRandom)
         {
-            timer.Interval =
-                TimeSpan.FromMilliseconds(
-                    random.Next(
-                        minInterval,
-                        maxInterval + 1));
+            SetRandomInterval();
         }
+        else
+        {
+            timer.Interval =
+                TimeSpan.FromMilliseconds(interval);
+        }
+
+        timer.Start();
     }
 
     public void Stop()
@@ -88,19 +87,35 @@ public class AutoPageService
         if (currentWindow == IntPtr.Zero)
             return;
 
+        IntPtr messageTarget =
+            GetMessageTarget();
+
         if (enableAutoClick)
         {
+            Win32.POINT clickPoint =
+                new()
+                {
+                    X = clickX,
+                    Y = clickY
+                };
+
+            Win32.ScreenToClient(
+                messageTarget,
+                ref clickPoint);
+
             IntPtr lParam =
-                (IntPtr)((clickY << 16) | (clickX & 0xFFFF));
+                MakeLParam(
+                    clickPoint.X,
+                    clickPoint.Y);
 
             Win32.PostMessage(
-                currentWindow,
+                messageTarget,
                 Win32.WM_LBUTTONDOWN,
                 (IntPtr)1,
                 lParam);
 
             Win32.PostMessage(
-                currentWindow,
+                messageTarget,
                 Win32.WM_LBUTTONUP,
                 IntPtr.Zero,
                 lParam);
@@ -109,15 +124,107 @@ public class AutoPageService
         }
 
         Win32.PostMessage(
-            currentWindow,
+            messageTarget,
             Win32.WM_KEYDOWN,
             (IntPtr)Win32.VK_NEXT,
             IntPtr.Zero);
 
         Win32.PostMessage(
-            currentWindow,
+            messageTarget,
             Win32.WM_KEYUP,
             (IntPtr)Win32.VK_NEXT,
             IntPtr.Zero);
+
+        if (useRandom)
+        {
+            SetRandomInterval();
+        }
+    }
+
+    private void SetRandomInterval()
+    {
+        int min =
+            Math.Min(
+                minInterval,
+                maxInterval);
+
+        int max =
+            Math.Max(
+                minInterval,
+                maxInterval);
+
+        timer.Interval =
+            TimeSpan.FromMilliseconds(
+                random.Next(
+                    min,
+                max + 1));
+    }
+
+    private IntPtr GetMessageTarget()
+    {
+        Win32.POINT screenPoint =
+            GetTargetPoint();
+
+        IntPtr target =
+            currentWindow;
+
+        while (true)
+        {
+            Win32.POINT clientPoint =
+                screenPoint;
+
+            if (!Win32.ScreenToClient(
+                    target,
+                    ref clientPoint))
+            {
+                return target;
+            }
+
+            IntPtr child =
+                Win32.ChildWindowFromPointEx(
+                    target,
+                    clientPoint,
+                    Win32.CWP_SKIPINVISIBLE);
+
+            if (child == IntPtr.Zero ||
+                child == target)
+            {
+                return target;
+            }
+
+            target = child;
+        }
+    }
+
+    private Win32.POINT GetTargetPoint()
+    {
+        if (enableAutoClick)
+        {
+            return new Win32.POINT
+            {
+                X = clickX,
+                Y = clickY
+            };
+        }
+
+        if (Win32.GetWindowRect(
+                currentWindow,
+                out var rect))
+        {
+            return new Win32.POINT
+            {
+                X = rect.Left + (rect.Right - rect.Left) / 2,
+                Y = rect.Top + (rect.Bottom - rect.Top) / 2
+            };
+        }
+
+        return new Win32.POINT();
+    }
+
+    private static IntPtr MakeLParam(
+        int low,
+        int high)
+    {
+        return (IntPtr)((high << 16) | (low & 0xFFFF));
     }
 }

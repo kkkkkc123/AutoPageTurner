@@ -26,6 +26,36 @@ public static class Win32
         StringBuilder text,
         int count);
 
+    [DllImport("user32.dll")]
+    public static extern bool GetWindowRect(
+        IntPtr hWnd,
+        out RECT lpRect);
+
+    [DllImport("user32.dll")]
+    public static extern bool ScreenToClient(
+        IntPtr hWnd,
+        ref POINT lpPoint);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr ChildWindowFromPointEx(
+        IntPtr hWndParent,
+        POINT point,
+        uint flags);
+
+    public const uint CWP_SKIPINVISIBLE = 0x0001;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT
+    {
+        public int Left;
+
+        public int Top;
+
+        public int Right;
+
+        public int Bottom;
+    }
+
     #endregion
 
     #region Keyboard
