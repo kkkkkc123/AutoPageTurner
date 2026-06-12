@@ -1,0 +1,122 @@
+﻿<Window x:Class="AutoPageTurner.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:AutoPageTurner"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="731" Width="919">
+    <Grid Margin="20">
+
+        <StackPanel>
+
+            <TextBlock
+            Text="AutoPageTurner"
+            FontSize="24"
+            FontWeight="Bold"
+            Margin="0,0,0,20"/>
+
+            <TextBlock
+            Text="目标窗口"/>
+
+            <ComboBox
+            Margin="0,10,0,0"
+            Height="35"
+            ItemsSource="{Binding Windows}"
+            SelectedItem="{Binding SelectedWindow}" />
+
+            <Button
+            Margin="0,10,0,0"
+            Height="35"
+            Width="100"
+            Content="刷新窗口"
+            Command="{Binding RefreshCommand}" />
+
+            <TextBlock
+    Margin="0,20,0,0"
+    Text="翻页间隔(ms)" />
+
+            <CheckBox
+    Margin="0,10,0,0"
+    Content="随机翻页间隔"
+    IsChecked="{Binding UseRandomInterval}" />
+            <TextBlock Text="最小间隔(ms)" />
+
+            <TextBox
+    Height="35"
+    Text="{Binding MinInterval}" />
+
+            <TextBlock Text="最大间隔(ms)" />
+
+            <TextBox
+    Height="35"
+    Text="{Binding MaxInterval}" />
+
+            <TextBox
+    Height="35"
+    Text="{Binding Interval}" />
+
+            <CheckBox
+    Margin="0,20,0,0"
+    Content="启用自动点击"
+    IsChecked="{Binding EnableAutoClick}" />
+
+            <TextBlock
+    Margin="0,10,0,0"
+    Text="点击X坐标" />
+
+            <TextBox
+    Height="35"
+    Text="{Binding ClickX}" />
+
+            <TextBlock
+    Margin="0,10,0,0"
+    Text="点击Y坐标" />
+
+            <TextBox
+    Height="35"
+    Text="{Binding ClickY}" />
+
+            <Button
+    Margin="0,10,0,0"
+    Width="120"
+    Height="35"
+    Content="拾取坐标"
+    Command="{Binding PickPointCommand}" />
+
+            <TextBlock
+    Margin="0,10,0,0"
+    Text="点击后等待(ms)" />
+
+            <TextBox
+    Height="35"
+    Text="{Binding ClickDelay}" />
+
+            <StackPanel
+    Orientation="Horizontal"
+    Margin="0,15,0,0">
+
+                <Button
+        Width="100"
+        Height="35"
+        Content="开始"
+        Command="{Binding StartCommand}" />
+
+                <Button
+        Width="100"
+        Height="35"
+        Margin="10,0,0,0"
+        Content="停止"
+        Command="{Binding StopCommand}" />
+
+            </StackPanel>
+
+            <TextBlock
+    Margin="0,20,0,0"
+    FontWeight="Bold"
+    Text="{Binding Status}" />
+
+        </StackPanel>
+
+    </Grid>
+</Window>
