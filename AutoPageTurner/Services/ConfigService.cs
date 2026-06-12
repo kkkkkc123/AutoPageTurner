@@ -1,11 +1,18 @@
-﻿using System.IO;
+using System.IO;
+using System.Text;
 using System.Text.Json;
 using AutoPageTurner.Models;
 
 namespace AutoPageTurner.Services;
 
-public class ConfigService
+public sealed class ConfigService
 {
+    private static readonly JsonSerializerOptions JsonOptions =
+        new()
+        {
+            WriteIndented = true
+        };
+
     private readonly string filePath =
         Path.Combine(
             Environment.GetFolderPath(
@@ -13,32 +20,56 @@ public class ConfigService
             "AutoPageTurner",
             "config.json");
 
-    public void Save(AppConfig config)
+    public string FilePath => filePath;
+
+    public bool TrySave(
+        AppConfig config,
+        out string? error)
     {
-        string? directory =
-            Path.GetDirectoryName(filePath);
+        string temporaryPath =
+            filePath + ".tmp";
 
-        if (directory != null)
+        try
         {
-            Directory.CreateDirectory(directory);
+            Directory.CreateDirectory(
+                Path.GetDirectoryName(
+                    filePath)!);
+
+            string json =
+                JsonSerializer.Serialize(
+                    config,
+                    JsonOptions);
+
+            File.WriteAllText(
+                temporaryPath,
+                json,
+                new UTF8Encoding(false));
+
+            File.Move(
+                temporaryPath,
+                filePath,
+                true);
+
+            error = null;
+            return true;
         }
+        catch (Exception exception)
+            when (exception is IOException or
+                  UnauthorizedAccessException)
+        {
+            TryDelete(
+                temporaryPath);
 
-        string json =
-            JsonSerializer.Serialize(
-                config,
-                new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
-
-        File.WriteAllText(
-            filePath,
-            json);
+            error =
+                exception.Message;
+            return false;
+        }
     }
 
     public AppConfig Load()
     {
-        if (!File.Exists(filePath))
+        if (!File.Exists(
+                filePath))
         {
             return new AppConfig();
         }
@@ -46,18 +77,59 @@ public class ConfigService
         try
         {
             string json =
-                File.ReadAllText(filePath);
+                File.ReadAllText(
+                    filePath);
 
-            return JsonSerializer.Deserialize<AppConfig>(json)
+            return JsonSerializer.Deserialize<AppConfig>(
+                       json)
                    ?? new AppConfig();
         }
-        catch (JsonException)
+        catch (Exception exception)
+            when (exception is JsonException or
+                  IOException or
+                  UnauthorizedAccessException)
         {
             return new AppConfig();
         }
-        catch (IOException)
+    }
+
+    public bool TryReset(
+        out string? error)
+    {
+        try
         {
-            return new AppConfig();
+            if (File.Exists(
+                    filePath))
+            {
+                File.Delete(
+                    filePath);
+            }
+
+            error = null;
+            return true;
+        }
+        catch (Exception exception)
+            when (exception is IOException or
+                  UnauthorizedAccessException)
+        {
+            error =
+                exception.Message;
+            return false;
+        }
+    }
+
+    private static void TryDelete(
+        string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
         }
     }
 }

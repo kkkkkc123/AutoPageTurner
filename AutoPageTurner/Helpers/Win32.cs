@@ -21,6 +21,15 @@ public static class Win32
         IntPtr hWnd);
 
     [DllImport("user32.dll")]
+    public static extern bool IsWindow(
+        IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(
+        IntPtr hWnd,
+        out uint processId);
+
+    [DllImport("user32.dll")]
     public static extern int GetWindowText(
         IntPtr hWnd,
         StringBuilder text,
@@ -73,6 +82,10 @@ public static class Win32
 
     public const int VK_NEXT = 0x22; // PageDown
 
+    public const int VK_DOWN = 0x28;
+
+    public const int VK_SPACE = 0x20;
+
     #endregion
 
     #region Mouse
@@ -80,6 +93,8 @@ public static class Win32
     public const uint WM_LBUTTONDOWN = 0x0201;
 
     public const uint WM_LBUTTONUP = 0x0202;
+
+    public const uint WM_MOUSEWHEEL = 0x020A;
 
     [DllImport("user32.dll")]
     public static extern bool GetCursorPos(

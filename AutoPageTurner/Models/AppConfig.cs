@@ -21,4 +21,10 @@ public class AppConfig
     public bool EnableClickDrift { get; set; }
 
     public int ClickDriftRadius { get; set; } = 10;
+
+    public string PageAction { get; set; } = "PageDown";
+
+    public string TargetWindowTitle { get; set; } = "";
+
+    public string TargetProcessName { get; set; } = "";
 }

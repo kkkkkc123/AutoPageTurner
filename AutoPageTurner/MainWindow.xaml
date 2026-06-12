@@ -6,8 +6,8 @@
         xmlns:local="clr-namespace:AutoPageTurner"
         mc:Ignorable="d"
         Title="AutoPageTurner"
-        Height="620"
-        Width="820"
+        Height="690"
+        Width="860"
         MinHeight="560"
         MinWidth="720"
         Background="#F4F6F8"
@@ -138,11 +138,13 @@
                         <ComboBox Grid.Row="1"
                                   ItemsSource="{Binding Windows}"
                                   SelectedItem="{Binding SelectedWindow}"
+                                  IsEnabled="{Binding IsEditingEnabled}"
                                   Margin="0,0,12,0" />
 
                         <Button Grid.Row="1"
                                 Grid.Column="1"
                                 Content="刷新窗口"
+                                IsEnabled="{Binding IsEditingEnabled}"
                                 Command="{Binding RefreshCommand}" />
                     </Grid>
                 </Border>
@@ -176,13 +178,24 @@
                                       Grid.ColumnSpan="3"
                                       Content="随机翻页间隔"
                                       IsChecked="{Binding UseRandomInterval}"
+                                      IsEnabled="{Binding IsEditingEnabled}"
                                       Margin="0,0,0,14" />
 
                             <StackPanel Grid.Row="2" Grid.Column="0">
                                 <TextBlock Text="固定间隔(ms)"
                                            Style="{StaticResource MutedText}"
                                            Margin="0,0,0,6" />
-                                <TextBox Text="{Binding Interval, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBox IsEnabled="{Binding IsFixedIntervalEnabled}"
+                                         Text="{Binding Interval, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="2" Grid.Column="2">
+                                <TextBlock Text="翻页动作"
+                                           Style="{StaticResource MutedText}"
+                                           Margin="0,0,0,6" />
+                                <ComboBox ItemsSource="{Binding PageActions}"
+                                          SelectedItem="{Binding PageAction}"
+                                          IsEnabled="{Binding IsEditingEnabled}" />
                             </StackPanel>
 
                             <StackPanel Grid.Row="3"
@@ -191,7 +204,8 @@
                                 <TextBlock Text="最小间隔(ms)"
                                            Style="{StaticResource MutedText}"
                                            Margin="0,0,0,6" />
-                                <TextBox Text="{Binding MinInterval, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBox IsEnabled="{Binding IsRandomIntervalEnabled}"
+                                         Text="{Binding MinInterval, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" />
                             </StackPanel>
 
                             <StackPanel Grid.Row="3"
@@ -200,7 +214,8 @@
                                 <TextBlock Text="最大间隔(ms)"
                                            Style="{StaticResource MutedText}"
                                            Margin="0,0,0,6" />
-                                <TextBox Text="{Binding MaxInterval, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBox IsEnabled="{Binding IsRandomIntervalEnabled}"
+                                         Text="{Binding MaxInterval, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" />
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -228,20 +243,23 @@
                                       Grid.ColumnSpan="3"
                                       Content="启用自动点击"
                                       IsChecked="{Binding EnableAutoClick}"
+                                      IsEnabled="{Binding IsEditingEnabled}"
                                       Margin="0,0,0,14" />
 
                             <StackPanel Grid.Row="2" Grid.Column="0">
                                 <TextBlock Text="X 坐标"
                                            Style="{StaticResource MutedText}"
                                            Margin="0,0,0,6" />
-                                <TextBox Text="{Binding ClickX, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBox IsEnabled="{Binding IsClickSettingsEnabled}"
+                                         Text="{Binding ClickX, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" />
                             </StackPanel>
 
                             <StackPanel Grid.Row="2" Grid.Column="2">
                                 <TextBlock Text="Y 坐标"
                                            Style="{StaticResource MutedText}"
                                            Margin="0,0,0,6" />
-                                <TextBox Text="{Binding ClickY, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBox IsEnabled="{Binding IsClickSettingsEnabled}"
+                                         Text="{Binding ClickY, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" />
                             </StackPanel>
 
                             <StackPanel Grid.Row="3"
@@ -255,7 +273,8 @@
                                             Content="拾取坐标"
                                             Command="{Binding PickPointCommand}"
                                             Margin="12,0,0,0" />
-                                    <TextBox Text="{Binding ClickDelay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox IsEnabled="{Binding IsClickSettingsEnabled}"
+                                             Text="{Binding ClickDelay, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" />
                                 </DockPanel>
                             </StackPanel>
 
@@ -263,6 +282,7 @@
                                       Grid.Column="0"
                                       Content="启用点击漂移"
                                       IsChecked="{Binding EnableClickDrift}"
+                                      IsEnabled="{Binding IsClickSettingsEnabled}"
                                       VerticalAlignment="Bottom"
                                       Margin="0,14,0,8" />
 
@@ -272,7 +292,8 @@
                                 <TextBlock Text="漂移半径(px)"
                                            Style="{StaticResource MutedText}"
                                            Margin="0,0,0,6" />
-                                <TextBox Text="{Binding ClickDriftRadius, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBox IsEnabled="{Binding IsDriftSettingsEnabled}"
+                                         Text="{Binding ClickDriftRadius, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" />
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -288,24 +309,59 @@
                 Padding="14"
                 Margin="0,18,0,0">
             <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Text="作者：kkkkkc123"
-                           Style="{StaticResource MutedText}" />
+                <StackPanel>
+                    <TextBlock Text="{Binding CountdownText}"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding ConfigFilePath}"
+                               Style="{StaticResource MutedText}"
+                               Margin="0,4,12,0"
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
 
                 <Button Grid.Column="1"
-                        Content="停止"
-                        Command="{Binding StopCommand}"
-                        Margin="0,0,10,0" />
+                        Content="恢复默认"
+                        Command="{Binding ResetCommand}"
+                        Margin="8,0,0,0" />
 
                 <Button Grid.Column="2"
+                        Content="测试点击"
+                        Command="{Binding TestClickCommand}"
+                        Margin="8,0,0,0" />
+
+                <Button Grid.Column="3"
+                        Content="测试翻页"
+                        Command="{Binding TestPageCommand}"
+                        Margin="8,0,0,0" />
+
+                <Button Grid.Column="4"
+                        Content="停止"
+                        Command="{Binding StopCommand}"
+                        Margin="8,0,0,0" />
+
+                <Button Grid.Column="5"
                         Content="开始"
                         Style="{StaticResource PrimaryButton}"
-                        Command="{Binding StartCommand}" />
+                        Command="{Binding StartCommand}"
+                        Margin="8,0,0,0" />
+
+                <TextBlock Grid.Row="1"
+                           Grid.ColumnSpan="6"
+                           Text="作者：kkkkkc123"
+                           Style="{StaticResource MutedText}"
+                           Margin="0,10,0,0" />
             </Grid>
         </Border>
     </Grid>

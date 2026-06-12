@@ -1,182 +1,342 @@
-﻿using System.Threading;
-using System.Windows.Threading;
 using AutoPageTurner.Helpers;
+using AutoPageTurner.Models;
 
 namespace AutoPageTurner.Services;
 
-public class AutoPageService
+public sealed class AutoPageService : IDisposable
 {
-    private readonly DispatcherTimer timer;
+    private readonly object syncRoot = new();
 
-    private IntPtr currentWindow;
+    private CancellationTokenSource? cancellation;
 
-    private readonly Random random = new();
+    private Task? runningTask;
 
-    private bool useRandom;
-
-    private int minInterval;
-
-    private int maxInterval;
-
-    private bool enableAutoClick;
-
-    private int clickX;
-
-    private int clickY;
-
-    private int clickDelay;
-
-    private bool enableClickDrift;
-
-    private int clickDriftRadius;
-
-    public bool IsRunning => timer.IsEnabled;
-
-    public AutoPageService()
+    public bool IsRunning
     {
-        timer = new DispatcherTimer();
-
-        timer.Tick += Timer_Tick;
+        get
+        {
+            lock (syncRoot)
+            {
+                return runningTask is
+                {
+                    IsCompleted: false
+                };
+            }
+        }
     }
 
-    public void Start(
-    IntPtr hwnd,
-    int interval,
-    bool useRandom,
-    int minInterval,
-    int maxInterval,
-    bool enableAutoClick,
-    int clickX,
-    int clickY,
-    int clickDelay,
-    bool enableClickDrift,
-    int clickDriftRadius)
+    public event Action<int, int>? CountdownChanged;
+
+    public event Action<string>? Stopped;
+
+    public async Task StartAsync(
+        AutoPageOptions options)
     {
-        currentWindow = hwnd;
+        await StopAsync();
 
-        this.useRandom = useRandom;
+        CancellationTokenSource source =
+            new();
 
-        this.minInterval = minInterval;
-
-        this.maxInterval = maxInterval;
-
-        this.enableAutoClick = enableAutoClick;
-
-        this.clickX = clickX;
-
-        this.clickY = clickY;
-
-        this.clickDelay = clickDelay;
-
-        this.enableClickDrift = enableClickDrift;
-
-        this.clickDriftRadius = clickDriftRadius;
-
-        if (useRandom)
+        lock (syncRoot)
         {
-            SetRandomInterval();
+            cancellation = source;
+            runningTask =
+                RunAsync(
+                    options,
+                    source.Token);
         }
-        else
+    }
+
+    public async Task StopAsync()
+    {
+        CancellationTokenSource? source;
+        Task? task;
+
+        lock (syncRoot)
         {
-            timer.Interval =
-                TimeSpan.FromMilliseconds(interval);
+            source = cancellation;
+            task = runningTask;
+            cancellation = null;
+            runningTask = null;
         }
 
-        timer.Start();
-    }
-
-    public void Stop()
-    {
-        timer.Stop();
-    }
-
-    private void Timer_Tick(
-        object? sender,
-        EventArgs e)
-    {
-        if (currentWindow == IntPtr.Zero)
+        if (source == null)
+        {
             return;
+        }
 
-        Win32.POINT targetPoint =
-            enableAutoClick
-                ? GetClickPoint()
-                : GetWindowCenterPoint();
+        source.Cancel();
+
+        if (task != null)
+        {
+            try
+            {
+                await task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        source.Dispose();
+    }
+
+    public async Task<bool> TestPageAsync(
+        AutoPageOptions options)
+    {
+        if (!Win32.IsWindow(
+                options.WindowHandle))
+        {
+            return false;
+        }
+
+        SendPageAction(
+            options,
+            GetMessageTarget(
+                options.WindowHandle,
+                GetWindowCenterPoint(
+                    options.WindowHandle)));
+
+        await Task.CompletedTask;
+        return true;
+    }
+
+    public async Task<bool> TestClickAsync(
+        AutoPageOptions options)
+    {
+        if (!Win32.IsWindow(
+                options.WindowHandle))
+        {
+            return false;
+        }
+
+        await SendClickAsync(
+            options,
+            CancellationToken.None);
+
+        return true;
+    }
+
+    public void Dispose()
+    {
+        CancellationTokenSource? source;
+
+        lock (syncRoot)
+        {
+            source = cancellation;
+            cancellation = null;
+            runningTask = null;
+        }
+
+        source?.Cancel();
+        source?.Dispose();
+    }
+
+    private async Task RunAsync(
+        AutoPageOptions options,
+        CancellationToken cancellationToken)
+    {
+        string stopReason =
+            "已停止";
+
+        try
+        {
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!Win32.IsWindow(
+                        options.WindowHandle))
+                {
+                    stopReason =
+                        "目标窗口已关闭，任务自动停止";
+                    break;
+                }
+
+                int interval =
+                    GetNextInterval(
+                        options);
+
+                await WaitWithCountdownAsync(
+                    interval,
+                    cancellationToken);
+
+                if (!Win32.IsWindow(
+                        options.WindowHandle))
+                {
+                    stopReason =
+                        "目标窗口已关闭，任务自动停止";
+                    break;
+                }
+
+                if (options.EnableAutoClick)
+                {
+                    await SendClickAsync(
+                        options,
+                        cancellationToken);
+                }
+
+                SendPageAction(
+                    options,
+                    GetMessageTarget(
+                        options.WindowHandle,
+                        GetWindowCenterPoint(
+                            options.WindowHandle)));
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            lock (syncRoot)
+            {
+                if (cancellation?.Token ==
+                    cancellationToken)
+                {
+                    cancellation.Dispose();
+                    cancellation = null;
+                    runningTask = null;
+                }
+            }
+
+            Stopped?.Invoke(
+                stopReason);
+        }
+    }
+
+    private async Task WaitWithCountdownAsync(
+        int interval,
+        CancellationToken cancellationToken)
+    {
+        int remaining =
+            interval;
+
+        while (remaining > 0)
+        {
+            CountdownChanged?.Invoke(
+                remaining,
+                interval);
+
+            int delay =
+                Math.Min(
+                    remaining,
+                    1000);
+
+            await Task.Delay(
+                    delay,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            remaining -= delay;
+        }
+
+        CountdownChanged?.Invoke(
+            0,
+            interval);
+    }
+
+    private static int GetNextInterval(
+        AutoPageOptions options)
+    {
+        if (!options.UseRandomInterval)
+        {
+            return options.Interval;
+        }
+
+        return Random.Shared.Next(
+            options.MinInterval,
+            options.MaxInterval + 1);
+    }
+
+    private static async Task SendClickAsync(
+        AutoPageOptions options,
+        CancellationToken cancellationToken)
+    {
+        Win32.POINT clickPoint =
+            GetClickPoint(
+                options);
 
         IntPtr messageTarget =
             GetMessageTarget(
-                targetPoint);
+                options.WindowHandle,
+                clickPoint);
 
-        if (enableAutoClick)
+        Win32.ScreenToClient(
+            messageTarget,
+            ref clickPoint);
+
+        IntPtr lParam =
+            MakeLParam(
+                clickPoint.X,
+                clickPoint.Y);
+
+        Win32.PostMessage(
+            messageTarget,
+            Win32.WM_LBUTTONDOWN,
+            (IntPtr)1,
+            lParam);
+
+        Win32.PostMessage(
+            messageTarget,
+            Win32.WM_LBUTTONUP,
+            IntPtr.Zero,
+            lParam);
+
+        if (options.ClickDelay > 0)
         {
-            Win32.POINT clickPoint =
-                targetPoint;
-
-            Win32.ScreenToClient(
-                messageTarget,
-                ref clickPoint);
-
-            IntPtr lParam =
-                MakeLParam(
-                    clickPoint.X,
-                    clickPoint.Y);
-
-            Win32.PostMessage(
-                messageTarget,
-                Win32.WM_LBUTTONDOWN,
-                (IntPtr)1,
-                lParam);
-
-            Win32.PostMessage(
-                messageTarget,
-                Win32.WM_LBUTTONUP,
-                IntPtr.Zero,
-                lParam);
-
-            Thread.Sleep(clickDelay);
+            await Task.Delay(
+                    options.ClickDelay,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
+    }
+
+    private static void SendPageAction(
+        AutoPageOptions options,
+        IntPtr messageTarget)
+    {
+        if (options.PageAction == "鼠标滚轮")
+        {
+            IntPtr wParam =
+                (IntPtr)(-120 << 16);
+
+            Win32.PostMessage(
+                messageTarget,
+                Win32.WM_MOUSEWHEEL,
+                wParam,
+                IntPtr.Zero);
+
+            return;
+        }
+
+        int virtualKey =
+            options.PageAction switch
+            {
+                "方向键下" => Win32.VK_DOWN,
+                "空格键" => Win32.VK_SPACE,
+                _ => Win32.VK_NEXT
+            };
 
         Win32.PostMessage(
             messageTarget,
             Win32.WM_KEYDOWN,
-            (IntPtr)Win32.VK_NEXT,
+            (IntPtr)virtualKey,
             IntPtr.Zero);
 
         Win32.PostMessage(
             messageTarget,
             Win32.WM_KEYUP,
-            (IntPtr)Win32.VK_NEXT,
+            (IntPtr)virtualKey,
             IntPtr.Zero);
-
-        if (useRandom)
-        {
-            SetRandomInterval();
-        }
     }
 
-    private void SetRandomInterval()
-    {
-        int min =
-            Math.Min(
-                minInterval,
-                maxInterval);
-
-        int max =
-            Math.Max(
-                minInterval,
-                maxInterval);
-
-        timer.Interval =
-            TimeSpan.FromMilliseconds(
-                random.Next(
-                    min,
-                max + 1));
-    }
-
-    private IntPtr GetMessageTarget(
+    private static IntPtr GetMessageTarget(
+        IntPtr window,
         Win32.POINT screenPoint)
     {
         IntPtr target =
-            currentWindow;
+            window;
 
         while (true)
         {
@@ -206,67 +366,55 @@ public class AutoPageService
         }
     }
 
-    private Win32.POINT GetClickPoint()
+    private static Win32.POINT GetClickPoint(
+        AutoPageOptions options)
     {
-        if (!enableClickDrift ||
-            clickDriftRadius == 0)
+        if (!options.EnableClickDrift ||
+            options.ClickDriftRadius == 0)
         {
             return new Win32.POINT
             {
-                X = clickX,
-                Y = clickY
+                X = options.ClickX,
+                Y = options.ClickY
             };
         }
 
-        double radius =
-            Math.Min(
-                Math.Abs(
-                    (long)clickDriftRadius),
-                int.MaxValue);
-
         double angle =
-            random.NextDouble() *
+            Random.Shared.NextDouble() *
             Math.PI *
             2;
 
         double distance =
             Math.Sqrt(
-                random.NextDouble()) *
-            radius;
-
-        long offsetX =
-            (long)Math.Round(
-                Math.Cos(angle) *
-                distance);
-
-        long offsetY =
-            (long)Math.Round(
-                Math.Sin(angle) *
-                distance);
+                Random.Shared.NextDouble()) *
+            options.ClickDriftRadius;
 
         return new Win32.POINT
         {
-            X = (int)Math.Clamp(
-                clickX + offsetX,
-                int.MinValue,
-                int.MaxValue),
-            Y = (int)Math.Clamp(
-                clickY + offsetY,
-                int.MinValue,
-                int.MaxValue)
+            X = options.ClickX +
+                (int)Math.Round(
+                    Math.Cos(angle) *
+                    distance),
+            Y = options.ClickY +
+                (int)Math.Round(
+                    Math.Sin(angle) *
+                    distance)
         };
     }
 
-    private Win32.POINT GetWindowCenterPoint()
+    private static Win32.POINT GetWindowCenterPoint(
+        IntPtr window)
     {
         if (Win32.GetWindowRect(
-                currentWindow,
+                window,
                 out var rect))
         {
             return new Win32.POINT
             {
-                X = rect.Left + (rect.Right - rect.Left) / 2,
-                Y = rect.Top + (rect.Bottom - rect.Top) / 2
+                X = rect.Left +
+                    (rect.Right - rect.Left) / 2,
+                Y = rect.Top +
+                    (rect.Bottom - rect.Top) / 2
             };
         }
 
@@ -277,6 +425,7 @@ public class AutoPageService
         int low,
         int high)
     {
-        return (IntPtr)((high << 16) | (low & 0xFFFF));
+        return (IntPtr)((high << 16) |
+                        (low & 0xFFFF));
     }
 }
