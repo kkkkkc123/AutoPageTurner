@@ -12,9 +12,13 @@ public class AppConfig
 
     public bool EnableAutoClick { get; set; }
 
-    public int ClickX { get; set; }
+    public int ClickX { get; set; } = 1000;
 
-    public int ClickY { get; set; }
+    public int ClickY { get; set; } = 500;
 
     public int ClickDelay { get; set; } = 100;
+
+    public bool EnableClickDrift { get; set; }
+
+    public int ClickDriftRadius { get; set; } = 10;
 }

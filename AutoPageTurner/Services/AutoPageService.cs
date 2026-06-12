@@ -26,6 +26,10 @@ public class AutoPageService
 
     private int clickDelay;
 
+    private bool enableClickDrift;
+
+    private int clickDriftRadius;
+
     public bool IsRunning => timer.IsEnabled;
 
     public AutoPageService()
@@ -44,7 +48,9 @@ public class AutoPageService
     bool enableAutoClick,
     int clickX,
     int clickY,
-    int clickDelay)
+    int clickDelay,
+    bool enableClickDrift,
+    int clickDriftRadius)
     {
         currentWindow = hwnd;
 
@@ -61,6 +67,10 @@ public class AutoPageService
         this.clickY = clickY;
 
         this.clickDelay = clickDelay;
+
+        this.enableClickDrift = enableClickDrift;
+
+        this.clickDriftRadius = clickDriftRadius;
 
         if (useRandom)
         {
@@ -87,17 +97,19 @@ public class AutoPageService
         if (currentWindow == IntPtr.Zero)
             return;
 
+        Win32.POINT targetPoint =
+            enableAutoClick
+                ? GetClickPoint()
+                : GetWindowCenterPoint();
+
         IntPtr messageTarget =
-            GetMessageTarget();
+            GetMessageTarget(
+                targetPoint);
 
         if (enableAutoClick)
         {
             Win32.POINT clickPoint =
-                new()
-                {
-                    X = clickX,
-                    Y = clickY
-                };
+                targetPoint;
 
             Win32.ScreenToClient(
                 messageTarget,
@@ -160,11 +172,9 @@ public class AutoPageService
                 max + 1));
     }
 
-    private IntPtr GetMessageTarget()
+    private IntPtr GetMessageTarget(
+        Win32.POINT screenPoint)
     {
-        Win32.POINT screenPoint =
-            GetTargetPoint();
-
         IntPtr target =
             currentWindow;
 
@@ -196,9 +206,10 @@ public class AutoPageService
         }
     }
 
-    private Win32.POINT GetTargetPoint()
+    private Win32.POINT GetClickPoint()
     {
-        if (enableAutoClick)
+        if (!enableClickDrift ||
+            clickDriftRadius == 0)
         {
             return new Win32.POINT
             {
@@ -207,6 +218,47 @@ public class AutoPageService
             };
         }
 
+        double radius =
+            Math.Min(
+                Math.Abs(
+                    (long)clickDriftRadius),
+                int.MaxValue);
+
+        double angle =
+            random.NextDouble() *
+            Math.PI *
+            2;
+
+        double distance =
+            Math.Sqrt(
+                random.NextDouble()) *
+            radius;
+
+        long offsetX =
+            (long)Math.Round(
+                Math.Cos(angle) *
+                distance);
+
+        long offsetY =
+            (long)Math.Round(
+                Math.Sin(angle) *
+                distance);
+
+        return new Win32.POINT
+        {
+            X = (int)Math.Clamp(
+                clickX + offsetX,
+                int.MinValue,
+                int.MaxValue),
+            Y = (int)Math.Clamp(
+                clickY + offsetY,
+                int.MinValue,
+                int.MaxValue)
+        };
+    }
+
+    private Win32.POINT GetWindowCenterPoint()
+    {
         if (Win32.GetWindowRect(
                 currentWindow,
                 out var rect))

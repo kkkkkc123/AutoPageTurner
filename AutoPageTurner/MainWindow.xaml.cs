@@ -7,13 +7,26 @@ namespace AutoPageTurner;
 
 public partial class MainWindow : Window
 {
+    private readonly MainViewModel viewModel;
+
     public MainWindow()
     {
         InitializeComponent();
 
         SetWindowIcon();
 
-        DataContext = new MainViewModel();
+        viewModel =
+            new MainViewModel();
+
+        DataContext = viewModel;
+    }
+
+    protected override void OnClosed(
+        EventArgs e)
+    {
+        viewModel.Shutdown();
+
+        base.OnClosed(e);
     }
 
     private void SetWindowIcon()

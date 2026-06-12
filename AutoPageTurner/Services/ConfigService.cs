@@ -8,11 +8,21 @@ public class ConfigService
 {
     private readonly string filePath =
         Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory,
+            Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData),
+            "AutoPageTurner",
             "config.json");
 
     public void Save(AppConfig config)
     {
+        string? directory =
+            Path.GetDirectoryName(filePath);
+
+        if (directory != null)
+        {
+            Directory.CreateDirectory(directory);
+        }
+
         string json =
             JsonSerializer.Serialize(
                 config,
@@ -33,10 +43,21 @@ public class ConfigService
             return new AppConfig();
         }
 
-        string json =
-            File.ReadAllText(filePath);
+        try
+        {
+            string json =
+                File.ReadAllText(filePath);
 
-        return JsonSerializer.Deserialize<AppConfig>(json)
-               ?? new AppConfig();
+            return JsonSerializer.Deserialize<AppConfig>(json)
+                   ?? new AppConfig();
+        }
+        catch (JsonException)
+        {
+            return new AppConfig();
+        }
+        catch (IOException)
+        {
+            return new AppConfig();
+        }
     }
 }

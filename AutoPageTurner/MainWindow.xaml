@@ -182,7 +182,7 @@
                                 <TextBlock Text="固定间隔(ms)"
                                            Style="{StaticResource MutedText}"
                                            Margin="0,0,0,6" />
-                                <TextBox Text="{Binding Interval}" />
+                                <TextBox Text="{Binding Interval, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
 
                             <StackPanel Grid.Row="3"
@@ -191,7 +191,7 @@
                                 <TextBlock Text="最小间隔(ms)"
                                            Style="{StaticResource MutedText}"
                                            Margin="0,0,0,6" />
-                                <TextBox Text="{Binding MinInterval}" />
+                                <TextBox Text="{Binding MinInterval, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
 
                             <StackPanel Grid.Row="3"
@@ -200,7 +200,7 @@
                                 <TextBlock Text="最大间隔(ms)"
                                            Style="{StaticResource MutedText}"
                                            Margin="0,0,0,6" />
-                                <TextBox Text="{Binding MaxInterval}" />
+                                <TextBox Text="{Binding MaxInterval, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -208,6 +208,7 @@
                     <Border Grid.Column="2" Style="{StaticResource SectionPanel}">
                         <Grid>
                             <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
@@ -233,14 +234,14 @@
                                 <TextBlock Text="X 坐标"
                                            Style="{StaticResource MutedText}"
                                            Margin="0,0,0,6" />
-                                <TextBox Text="{Binding ClickX}" />
+                                <TextBox Text="{Binding ClickX, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
 
                             <StackPanel Grid.Row="2" Grid.Column="2">
                                 <TextBlock Text="Y 坐标"
                                            Style="{StaticResource MutedText}"
                                            Margin="0,0,0,6" />
-                                <TextBox Text="{Binding ClickY}" />
+                                <TextBox Text="{Binding ClickY, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
 
                             <StackPanel Grid.Row="3"
@@ -254,8 +255,24 @@
                                             Content="拾取坐标"
                                             Command="{Binding PickPointCommand}"
                                             Margin="12,0,0,0" />
-                                    <TextBox Text="{Binding ClickDelay}" />
+                                    <TextBox Text="{Binding ClickDelay, UpdateSourceTrigger=PropertyChanged}" />
                                 </DockPanel>
+                            </StackPanel>
+
+                            <CheckBox Grid.Row="4"
+                                      Grid.Column="0"
+                                      Content="启用点击漂移"
+                                      IsChecked="{Binding EnableClickDrift}"
+                                      VerticalAlignment="Bottom"
+                                      Margin="0,14,0,8" />
+
+                            <StackPanel Grid.Row="4"
+                                        Grid.Column="2"
+                                        Margin="0,14,0,0">
+                                <TextBlock Text="漂移半径(px)"
+                                           Style="{StaticResource MutedText}"
+                                           Margin="0,0,0,6" />
+                                <TextBox Text="{Binding ClickDriftRadius, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
                         </Grid>
                     </Border>

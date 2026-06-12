@@ -16,6 +16,8 @@ public class MainViewModel : INotifyPropertyChanged
 
     private readonly AutoPageService pageService = new();
 
+    private readonly ConfigService configService = new();
+
     public ObservableCollection<WindowItem> Windows { get; }
         = new();
 
@@ -114,6 +116,33 @@ public class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
+
+    private bool enableClickDrift;
+
+    public bool EnableClickDrift
+    {
+        get => enableClickDrift;
+        set
+        {
+            enableClickDrift = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private int clickDriftRadius = 10;
+
+    public int ClickDriftRadius
+    {
+        get => clickDriftRadius;
+        set
+        {
+            clickDriftRadius = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private bool isPickingPoint;
+
     public ICommand RefreshCommand { get; }
 
     public ICommand StartCommand { get; }
@@ -148,6 +177,8 @@ public class MainViewModel : INotifyPropertyChanged
 
     public MainViewModel()
     {
+        LoadConfiguration();
+
         RefreshCommand =
             new RelayCommand(LoadWindows);
 
@@ -175,6 +206,8 @@ public class MainViewModel : INotifyPropertyChanged
 
     private void Start()
     {
+        SaveConfiguration();
+
         if (SelectedWindow == null)
         {
             MessageBox.Show("请选择窗口");
@@ -191,7 +224,9 @@ public class MainViewModel : INotifyPropertyChanged
             EnableAutoClick,
             ClickX,
             ClickY,
-            ClickDelay);
+            ClickDelay,
+            EnableClickDrift,
+            ClickDriftRadius);
 
         Status = "运行中";
     }
@@ -203,19 +238,85 @@ public class MainViewModel : INotifyPropertyChanged
         Status = "已停止";
     }
 
+    public void Shutdown()
+    {
+        pageService.Stop();
+
+        SaveConfiguration();
+    }
+
+    private void LoadConfiguration()
+    {
+        AppConfig config =
+            configService.Load();
+
+        Interval = config.Interval;
+        UseRandomInterval = config.UseRandomInterval;
+        MinInterval = config.MinInterval;
+        MaxInterval = config.MaxInterval;
+        EnableAutoClick = config.EnableAutoClick;
+        ClickX = config.ClickX;
+        ClickY = config.ClickY;
+        ClickDelay = config.ClickDelay;
+        EnableClickDrift = config.EnableClickDrift;
+        ClickDriftRadius = config.ClickDriftRadius;
+    }
+
+    private void SaveConfiguration()
+    {
+        configService.Save(
+            new AppConfig
+            {
+                Interval = Interval,
+                UseRandomInterval = UseRandomInterval,
+                MinInterval = MinInterval,
+                MaxInterval = MaxInterval,
+                EnableAutoClick = EnableAutoClick,
+                ClickX = ClickX,
+                ClickY = ClickY,
+                ClickDelay = ClickDelay,
+                EnableClickDrift = EnableClickDrift,
+                ClickDriftRadius = ClickDriftRadius
+            });
+    }
+
     private async void PickPoint()
     {
-        Status = "3秒后开始获取坐标";
+        if (isPickingPoint)
+        {
+            return;
+        }
 
-        await Task.Delay(3000);
+        isPickingPoint = true;
 
-        Win32.GetCursorPos(out var point);
+        try
+        {
+            for (int seconds = 3;
+                 seconds > 0;
+                 seconds--)
+            {
+                Status =
+                    $"{seconds}秒后获取坐标";
 
-        ClickX = point.X;
+                await Task.Delay(1000);
+            }
 
-        ClickY = point.Y;
+            Status = "正在获取坐标";
 
-        Status = $"坐标: {point.X},{point.Y}";
+            Win32.GetCursorPos(
+                out var point);
+
+            ClickX = point.X;
+
+            ClickY = point.Y;
+
+            Status =
+                $"坐标: {point.X},{point.Y}";
+        }
+        finally
+        {
+            isPickingPoint = false;
+        }
     }
 
     public event PropertyChangedEventHandler?
