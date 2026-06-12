@@ -24,6 +24,14 @@ public class AppConfig
 
     public string PageAction { get; set; } = "PageDown";
 
+    public int WheelX { get; set; } = 1000;
+
+    public int WheelY { get; set; } = 500;
+
+    public bool EnableWheelDrift { get; set; }
+
+    public int WheelDriftRadius { get; set; } = 10;
+
     public string TargetWindowTitle { get; set; } = "";
 
     public string TargetProcessName { get; set; } = "";

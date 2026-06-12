@@ -50,6 +50,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private int clickDriftRadius = 10;
 
+    private int wheelX = 1000;
+
+    private int wheelY = 500;
+
+    private bool enableWheelDrift;
+
+    private int wheelDriftRadius = 10;
+
     private string pageAction =
         "PageDown";
 
@@ -110,6 +118,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 () => !IsRunning &&
                       !isPickingPoint);
 
+        PickWheelPointCommand =
+            new RelayCommand(
+                PickWheelPoint,
+                () => !IsRunning &&
+                      !isPickingPoint &&
+                      IsMouseWheelAction);
+
         ResetCommand =
             new RelayCommand(
                 ResetConfiguration,
@@ -140,6 +155,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand TestClickCommand { get; }
 
     public RelayCommand PickPointCommand { get; }
+
+    public RelayCommand PickWheelPointCommand { get; }
 
     public RelayCommand ResetCommand { get; }
 
@@ -246,12 +263,63 @@ public sealed class MainViewModel : INotifyPropertyChanged
             value);
     }
 
+    public int WheelX
+    {
+        get => wheelX;
+        set => SetField(
+            ref wheelX,
+            value);
+    }
+
+    public int WheelY
+    {
+        get => wheelY;
+        set => SetField(
+            ref wheelY,
+            value);
+    }
+
+    public bool EnableWheelDrift
+    {
+        get => enableWheelDrift;
+        set
+        {
+            if (SetField(
+                    ref enableWheelDrift,
+                    value))
+            {
+                OnPropertyChanged(
+                    nameof(IsWheelDriftSettingsEnabled));
+            }
+        }
+    }
+
+    public int WheelDriftRadius
+    {
+        get => wheelDriftRadius;
+        set => SetField(
+            ref wheelDriftRadius,
+            value);
+    }
+
     public string PageAction
     {
         get => pageAction;
-        set => SetField(
-            ref pageAction,
-            value);
+        set
+        {
+            if (SetField(
+                    ref pageAction,
+                    value))
+            {
+                OnPropertyChanged(
+                    nameof(IsMouseWheelAction));
+                OnPropertyChanged(
+                    nameof(IsWheelSettingsEnabled));
+                OnPropertyChanged(
+                    nameof(IsWheelDriftSettingsEnabled));
+                RaiseCommandStates();
+            }
+        }
     }
 
     public string Status
@@ -303,6 +371,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool IsDriftSettingsEnabled =>
         IsClickSettingsEnabled &&
         EnableClickDrift;
+
+    public bool IsMouseWheelAction =>
+        PageAction == "鼠标滚轮";
+
+    public bool IsWheelSettingsEnabled =>
+        !IsRunning &&
+        IsMouseWheelAction;
+
+    public bool IsWheelDriftSettingsEnabled =>
+        IsWheelSettingsEnabled &&
+        EnableWheelDrift;
 
     public WindowItem? SelectedWindow
     {
@@ -454,6 +533,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private async void PickPoint()
     {
+        await PickCoordinateAsync(
+            false);
+    }
+
+    private async void PickWheelPoint()
+    {
+        await PickCoordinateAsync(
+            true);
+    }
+
+    private async Task PickCoordinateAsync(
+        bool isWheelPoint)
+    {
         if (isPickingPoint)
         {
             return;
@@ -469,7 +561,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
                  seconds--)
             {
                 Status =
-                    $"{seconds}秒后获取坐标";
+                    isWheelPoint
+                        ? $"{seconds}秒后获取滚轮坐标"
+                        : $"{seconds}秒后获取点击坐标";
 
                 await Task.Delay(
                     1000);
@@ -478,11 +572,21 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Win32.GetCursorPos(
                 out var point);
 
-            ClickX = point.X;
-            ClickY = point.Y;
+            if (isWheelPoint)
+            {
+                WheelX = point.X;
+                WheelY = point.Y;
+            }
+            else
+            {
+                ClickX = point.X;
+                ClickY = point.Y;
+            }
 
             Status =
-                $"坐标: {point.X},{point.Y}";
+                isWheelPoint
+                    ? $"滚轮坐标: {point.X},{point.Y}"
+                    : $"点击坐标: {point.X},{point.Y}";
         }
         finally
         {
@@ -585,6 +689,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return false;
         }
 
+        if (WheelDriftRadius is < 0 or > 1000)
+        {
+            ShowValidationError(
+                "滚轮随机偏移半径必须在 0 到 1000 像素之间。");
+            return false;
+        }
+
         options =
             new AutoPageOptions
             {
@@ -611,7 +722,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 ClickDriftRadius =
                     ClickDriftRadius,
                 PageAction =
-                    PageAction
+                    PageAction,
+                WheelX =
+                    WheelX,
+                WheelY =
+                    WheelY,
+                EnableWheelDrift =
+                    EnableWheelDrift,
+                WheelDriftRadius =
+                    WheelDriftRadius
             };
 
         return true;
@@ -670,6 +789,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 ClickDriftRadius,
             PageAction =
                 PageAction,
+            WheelX =
+                WheelX,
+            WheelY =
+                WheelY,
+            EnableWheelDrift =
+                EnableWheelDrift,
+            WheelDriftRadius =
+                WheelDriftRadius,
             TargetWindowTitle =
                 SelectedWindow?.Title ?? "",
             TargetProcessName =
@@ -741,6 +868,21 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 ? config.PageAction
                 : "PageDown";
 
+        WheelX =
+            config.WheelX;
+
+        WheelY =
+            config.WheelY;
+
+        EnableWheelDrift =
+            config.EnableWheelDrift;
+
+        WheelDriftRadius =
+            Math.Clamp(
+                config.WheelDriftRadius,
+                0,
+                1000);
+
         savedWindowTitle =
             config.TargetWindowTitle;
 
@@ -798,6 +940,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
             nameof(IsClickSettingsEnabled));
         OnPropertyChanged(
             nameof(IsDriftSettingsEnabled));
+        OnPropertyChanged(
+            nameof(IsWheelSettingsEnabled));
+        OnPropertyChanged(
+            nameof(IsWheelDriftSettingsEnabled));
     }
 
     private void RaiseCommandStates()
@@ -808,6 +954,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         TestPageCommand?.RaiseCanExecuteChanged();
         TestClickCommand?.RaiseCanExecuteChanged();
         PickPointCommand?.RaiseCanExecuteChanged();
+        PickWheelPointCommand?.RaiseCanExecuteChanged();
         ResetCommand?.RaiseCanExecuteChanged();
     }
 

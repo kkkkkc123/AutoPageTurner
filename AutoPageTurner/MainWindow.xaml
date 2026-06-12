@@ -163,6 +163,9 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
@@ -217,6 +220,50 @@
                                 <TextBox IsEnabled="{Binding IsRandomIntervalEnabled}"
                                          Text="{Binding MaxInterval, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" />
                             </StackPanel>
+
+                            <StackPanel Grid.Row="4"
+                                        Grid.Column="0"
+                                        Margin="0,14,0,0">
+                                <TextBlock Text="滚轮 X 坐标"
+                                           Style="{StaticResource MutedText}"
+                                           Margin="0,0,0,6" />
+                                <TextBox IsEnabled="{Binding IsWheelSettingsEnabled}"
+                                         Text="{Binding WheelX, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="4"
+                                        Grid.Column="2"
+                                        Margin="0,14,0,0">
+                                <TextBlock Text="滚轮 Y 坐标"
+                                           Style="{StaticResource MutedText}"
+                                           Margin="0,0,0,6" />
+                                <TextBox IsEnabled="{Binding IsWheelSettingsEnabled}"
+                                         Text="{Binding WheelY, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" />
+                            </StackPanel>
+
+                            <CheckBox Grid.Row="5"
+                                      Grid.Column="0"
+                                      Content="滚轮坐标随机偏移"
+                                      IsChecked="{Binding EnableWheelDrift}"
+                                      IsEnabled="{Binding IsWheelSettingsEnabled}"
+                                      VerticalAlignment="Bottom"
+                                      Margin="0,14,0,8" />
+
+                            <StackPanel Grid.Row="5"
+                                        Grid.Column="2"
+                                        Margin="0,14,0,0">
+                                <TextBlock Text="偏移半径(px)"
+                                           Style="{StaticResource MutedText}"
+                                           Margin="0,0,0,6" />
+                                <TextBox IsEnabled="{Binding IsWheelDriftSettingsEnabled}"
+                                         Text="{Binding WheelDriftRadius, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" />
+                            </StackPanel>
+
+                            <Button Grid.Row="6"
+                                    Grid.ColumnSpan="3"
+                                    Content="拾取滚轮坐标"
+                                    Command="{Binding PickWheelPointCommand}"
+                                    Margin="0,14,0,0" />
                         </Grid>
                     </Border>
 

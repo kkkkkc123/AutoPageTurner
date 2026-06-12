@@ -90,12 +90,16 @@ public sealed class AutoPageService : IDisposable
             return false;
         }
 
+        Win32.POINT screenPoint =
+            GetPageActionPoint(
+                options);
+
         SendPageAction(
             options,
             GetMessageTarget(
                 options.WindowHandle,
-                GetWindowCenterPoint(
-                    options.WindowHandle)));
+                screenPoint),
+            screenPoint);
 
         await Task.CompletedTask;
         return true;
@@ -176,12 +180,16 @@ public sealed class AutoPageService : IDisposable
                         cancellationToken);
                 }
 
+                Win32.POINT screenPoint =
+                    GetPageActionPoint(
+                        options);
+
                 SendPageAction(
                     options,
                     GetMessageTarget(
                         options.WindowHandle,
-                        GetWindowCenterPoint(
-                            options.WindowHandle)));
+                        screenPoint),
+                    screenPoint);
             }
         }
         catch (OperationCanceledException)
@@ -294,18 +302,18 @@ public sealed class AutoPageService : IDisposable
 
     private static void SendPageAction(
         AutoPageOptions options,
-        IntPtr messageTarget)
+        IntPtr messageTarget,
+        Win32.POINT screenPoint)
     {
         if (options.PageAction == "鼠标滚轮")
         {
-            IntPtr wParam =
-                (IntPtr)(-120 << 16);
-
             Win32.PostMessage(
                 messageTarget,
                 Win32.WM_MOUSEWHEEL,
-                wParam,
-                IntPtr.Zero);
+                MakeWheelWParam(-120),
+                MakeLParam(
+                    screenPoint.X,
+                    screenPoint.Y));
 
             return;
         }
@@ -421,11 +429,79 @@ public sealed class AutoPageService : IDisposable
         return new Win32.POINT();
     }
 
+    private static Win32.POINT GetPageActionPoint(
+        AutoPageOptions options)
+    {
+        if (options.PageAction ==
+            "鼠标滚轮")
+        {
+            return GetRandomizedPoint(
+                options.WheelX,
+                options.WheelY,
+                options.EnableWheelDrift,
+                options.WheelDriftRadius);
+        }
+
+        return GetWindowCenterPoint(
+            options.WindowHandle);
+    }
+
+    private static Win32.POINT GetRandomizedPoint(
+        int x,
+        int y,
+        bool enableDrift,
+        int driftRadius)
+    {
+        if (!enableDrift ||
+            driftRadius == 0)
+        {
+            return new Win32.POINT
+            {
+                X = x,
+                Y = y
+            };
+        }
+
+        double angle =
+            Random.Shared.NextDouble() *
+            Math.PI *
+            2;
+
+        double distance =
+            Math.Sqrt(
+                Random.Shared.NextDouble()) *
+            driftRadius;
+
+        return new Win32.POINT
+        {
+            X = x +
+                (int)Math.Round(
+                    Math.Cos(angle) *
+                    distance),
+            Y = y +
+                (int)Math.Round(
+                    Math.Sin(angle) *
+                    distance)
+        };
+    }
+
     private static IntPtr MakeLParam(
         int low,
         int high)
     {
-        return (IntPtr)((high << 16) |
-                        (low & 0xFFFF));
+        uint value =
+            (uint)(ushort)low |
+            ((uint)(ushort)high << 16);
+
+        return (IntPtr)(nint)value;
+    }
+
+    private static IntPtr MakeWheelWParam(
+        short delta)
+    {
+        uint value =
+            (uint)(ushort)delta << 16;
+
+        return (IntPtr)(nint)value;
     }
 }

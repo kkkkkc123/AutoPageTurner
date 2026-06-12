@@ -25,4 +25,12 @@ public sealed class AutoPageOptions
     public int ClickDriftRadius { get; init; }
 
     public string PageAction { get; init; } = "PageDown";
+
+    public int WheelX { get; init; } = 1000;
+
+    public int WheelY { get; init; } = 500;
+
+    public bool EnableWheelDrift { get; init; }
+
+    public int WheelDriftRadius { get; init; } = 10;
 }
